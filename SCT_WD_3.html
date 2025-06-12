@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Modern Calculator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+  /* Reset and box sizing */
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    color: #e0e0e0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    padding: 16px;
+  }
+  .calculator {
+    background: rgba(30, 30, 35, 0.85);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+    width: 320px;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    gap: 16px;
+  }
+  .display {
+    background: rgba(10,10,15,0.8);
+    border-radius: 12px;
+    padding: 20px 24px;
+    font-size: 2.25rem;
+    font-weight: 600;
+    color: #f5f5f5;
+    text-align: right;
+    min-height: 60px;
+    user-select: none;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+  }
+  .buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  button {
+    font-size: 1.25rem;
+    font-weight: 600;
+    padding: 16px 0;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.3s ease, color 0.3s ease, transform 0.15s ease;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  }
+  button:focus-visible {
+    outline: 3px solid #06b6d4;
+    outline-offset: 2px;
+  }
+  button:hover:not(:disabled) {
+    background-color: #06b6d4;
+    color: #1e1e1e;
+    transform: scale(1.05);
+  }
+  button:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  button.operator {
+    background-color: #434857;
+    color: #b0bec5;
+  }
+  button.operator:hover {
+    background-color: #06b6d4;
+    color: #1e1e1e;
+  }
+  button.equals {
+    background-color: #06b6d4;
+    color: white;
+    grid-column: span 2;
+  }
+  button.equals:hover {
+    background-color: #0abde3;
+  }
+  button.clear {
+    background-color: #ef4444;
+    color: white;
+  }
+  button.clear:hover {
+    background-color: #f87171;
+  }
+  button.zero {
+    grid-column: span 2;
+  }
+</style>
+</head>
+<body>
+<div class="calculator" role="application" aria-label="Calculator">
+  <div class="display" id="display" aria-live="polite" aria-atomic="true" tabindex="0">0</div>
+  <div class="buttons" role="group" aria-label="Calculator buttons">
+    <button type="button" class="clear" id="clear" aria-label="Clear all entries">C</button>
+    <button type="button" class="operator" id="backspace" aria-label="Backspace">←</button>
+    <button type="button" class="operator" data-value="%" aria-label="Modulo">%</button>
+    <button type="button" class="operator" data-value="/" aria-label="Divide">÷</button>
+
+    <button type="button" data-value="7" aria-label="7">7</button>
+    <button type="button" data-value="8" aria-label="8">8</button>
+    <button type="button" data-value="9" aria-label="9">9</button>
+    <button type="button" class="operator" data-value="*" aria-label="Multiply">×</button>
+
+    <button type="button" data-value="4" aria-label="4">4</button>
+    <button type="button" data-value="5" aria-label="5">5</button>
+    <button type="button" data-value="6" aria-label="6">6</button>
+    <button type="button" class="operator" data-value="-" aria-label="Minus">−</button>
+
+    <button type="button" data-value="1" aria-label="1">1</button>
+    <button type="button" data-value="2" aria-label="2">2</button>
+    <button type="button" data-value="3" aria-label="3">3</button>
+    <button type="button" class="operator" data-value="+" aria-label="Plus">+</button>
+
+    <button type="button" data-value="0" class="zero" aria-label="0">0</button>
+    <button type="button" data-value="." aria-label="Decimal point">.</button>
+    <button type="button" class="equals" id="equals" aria-label="Calculate results">=</button>
+  </div>
+</div>
+
+<script>
+  (() => {
+    const display = document.getElementById('display');
+    let expression = '';
+
+    // Allowed characters for input to prevent code injection
+    const allowedChars = '0123456789+-*/%.';
+
+    function updateDisplay() {
+      display.textContent = expression || '0';
+      display.focus();
+    }
+
+    function clearAll() {
+      expression = '';
+      updateDisplay();
+    }
+
+    function backspace() {
+      expression = expression.slice(0, -1);
+      updateDisplay();
+    }
+
+    function appendToExpression(char) {
+      // Prevent multiple decimals in a single number block
+      if (char === '.') {
+        // Find last number block
+        const parts = expression.split(/[\+\-\*\/%]/);
+        const lastPart = parts[parts.length - 1];
+        if (lastPart.includes('.')) return;
+        if (lastPart === '') char = '0.';
+      }
+      // Prevent operator duplicates like ++ or -- except minus can be start
+      if ('+-*/%'.includes(char)) {
+        if (expression === '' && char !== '-') return; // only minus can start
+        if (expression.endsWith(char)) return;
+        if ('+-*/%'.includes(expression.slice(-1))) {
+          // Replace last operator with new operator
+          expression = expression.slice(0, -1);
+        }
+      }
+      expression += char;
+      updateDisplay();
+    }
+
+    function calculate() {
+      if (expression === '') return;
+      try {
+        // Replace × and ÷ with * and /
+        let expr = expression.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
+
+        // Prevent invalid characters just to be safe
+        if (!/^[0-9+\-*/%.]+$/.test(expr)) {
+          throw new Error('Invalid characters in expression');
+        }
+
+        // Evaluate the expression safely
+        // Implement a simple parser using Function constructor limited to arithmetic only
+        // Use mathjs or similar, but since no external lib, do custom controlled eval safely
+
+        // eslint-disable-next-line no-new-func
+        const result = Function('"use strict"; return (' + expr + ')')();
+
+        if (typeof result === 'number' && isFinite(result)) {
+          expression = result.toString();
+          updateDisplay();
+        } else {
+          throw new Error('Result is not finite');
+        }
+      } catch (err) {
+        expression = '';
+        display.textContent = 'Error';
+        setTimeout(() => {
+          display.textContent = '0';
+        }, 1500);
+      }
+    }
+
+    // Event listeners for buttons
+    const buttons = document.querySelectorAll('.buttons button:not(#equals)');
+    buttons.forEach(button => {
+      button.addEventListener('click', e => {
+        const val = button.dataset.value;
+        if (button.id === 'clear') {
+          clearAll();
+        } else if (button.id === 'backspace') {
+          backspace();
+        } else if (val !== undefined) {
+          appendToExpression(val);
+        }
+      });
+    });
+
+    document.getElementById('equals').addEventListener('click', () => {
+      calculate();
+    });
+
+    // Keyboard input handling
+    window.addEventListener('keydown', e => {
+      if (e.repeat) return; // ignore repeated keys
+
+      if ((e.key >= '0' && e.key <= '9') || e.key === '.') {
+        e.preventDefault();
+        appendToExpression(e.key);
+      } else if (['+', '-', '*', '/', '%'].includes(e.key)) {
+        e.preventDefault();
+        appendToExpression(e.key);
+      } else if (e.key === 'Enter' || e.key === '=') {
+        e.preventDefault();
+        calculate();
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        backspace();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        clearAll();
+      }
+    });
+
+    // Initialize display
+    updateDisplay();
+  })();
+</script>
+</body>
+</html>
+
